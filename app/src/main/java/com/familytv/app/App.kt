@@ -196,7 +196,7 @@ class LoginActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "Family TV"
+            text = "Family TV  v1.1"
             textSize = 36f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
@@ -388,7 +388,7 @@ class ChannelsActivity : Activity() {
             addView(navList)
         }
         val who = TextView(this).apply {
-            text = prefs.user
+            text = prefs.user + "  v1.1"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
