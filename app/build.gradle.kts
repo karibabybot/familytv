@@ -11,8 +11,8 @@ android {
         applicationId = "com.familytv.app"
         minSdk = 22          // works on older Fire Sticks too
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     compileOptions {

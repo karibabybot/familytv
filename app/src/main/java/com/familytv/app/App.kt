@@ -196,7 +196,7 @@ class LoginActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "Family TV  v1.1"
+            text = "Family TV  v1.2"
             textSize = 36f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
@@ -335,6 +335,9 @@ class ChannelsActivity : Activity() {
     private var section = "home"
     private var query = ""
     private var firstTile: View? = null
+    private var focusTile: View? = null
+    private var wantFocusUrl: String? = null
+    private var lastLoad = 0L
 
     private lateinit var navList: LinearLayout
     private lateinit var content: LinearLayout
@@ -387,8 +390,25 @@ class ChannelsActivity : Activity() {
             isVerticalScrollBarEnabled = false
             addView(navList)
         }
+        val refresh = TextView(this).apply {
+            text = "Refresh channels"
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            isFocusable = true
+            isClickable = true
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), 0, 0, 0)
+            background = rounded(Color.TRANSPARENT, 12)
+        }
+        refresh.setOnFocusChangeListener { v, f ->
+            v.background = rounded(if (f) ACCENT else Color.TRANSPARENT, 12)
+        }
+        refresh.setOnClickListener {
+            Toast.makeText(this, "Refreshing...", Toast.LENGTH_SHORT).show()
+            startRefresh()
+        }
         val who = TextView(this).apply {
-            text = prefs.user + "  v1.1"
+            text = prefs.user + "  v1.2"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
@@ -418,6 +438,7 @@ class ChannelsActivity : Activity() {
             setPadding(dp(14), dp(24), dp(14), dp(14))
             addView(brand)
             addView(navScroll, LinearLayout.LayoutParams(MATCH, 0, 1f))
+            addView(refresh, LinearLayout.LayoutParams(MATCH, dp(40)))
             addView(who)
             addView(logout, LinearLayout.LayoutParams(MATCH, dp(40)))
         }
@@ -503,8 +524,9 @@ class ChannelsActivity : Activity() {
                     buildNav()
                     status.text = if (result.isEmpty()) "No channels for this account yet." else ""
                     showSection()
-                    val first = firstTile
-                    if (first != null) first.requestFocus() else navViews.firstOrNull()?.second?.requestFocus()
+                    lastLoad = System.currentTimeMillis()
+                    val target = focusTile ?: firstTile
+                    if (target != null) target.requestFocus() else navViews.firstOrNull()?.second?.requestFocus()
                 }
             } catch (e: AuthException) {
                 runOnUiThread {
@@ -602,6 +624,7 @@ class ChannelsActivity : Activity() {
     private fun showSection() {
         content.removeAllViews()
         firstTile = null
+        focusTile = null
         favSet = prefs.favorites()
         val q = query.trim().lowercase()
         val favList = all.filter { favSet.contains(it.url) }
@@ -758,7 +781,21 @@ class ChannelsActivity : Activity() {
             true
         }
         if (firstTile == null) firstTile = box
+        if (focusTile == null && wantFocusUrl != null && ch.url == wantFocusUrl) focusTile = box
         return box
+    }
+
+    // Reload the channel list from the server, keeping the same screen and (if possible) the same selected tile.
+    private fun startRefresh() {
+        wantFocusUrl = (currentFocus?.tag as? TileHolder)?.channel?.url
+        if (all.isNotEmpty()) status.text = "Refreshing..."
+        loadChannels()
+    }
+
+    // Coming back to the app (or back from watching) refreshes the list if it has been a while.
+    override fun onResume() {
+        super.onResume()
+        if (all.isNotEmpty() && System.currentTimeMillis() - lastLoad > 60000) startRefresh()
     }
 
     private fun toggleFavorite(v: View) {
