@@ -162,7 +162,7 @@ class LoginActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, dp(24))
         }
-        val serverF = field("Server address (example: familytv.onrender.com)", InputType.TYPE_TEXT_VARIATION_URI, prefs.server)
+        val serverF = field("Server address (example: familytv.onrender.com)",InputType.TYPE_TEXT_VARIATION_URI, prefs.server)
         val userF = field("Username", InputType.TYPE_CLASS_TEXT, prefs.user)
         val passF = field("Password", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, "")
         val button = Button(this).apply {
@@ -361,3 +361,51 @@ class PlayerActivity : Activity() {
                     Gravity.TOP or Gravity.START
                 ).apply { setMargins(dp(32), dp(24), 0, 0) }
             )
+        }
+        setContentView(frame)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Allow streams that jump between http and https
+        val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+        val p = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+            .build()
+        p.addListener(object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                Toast.makeText(this@PlayerActivity, "Can't play this channel right now.", Toast.LENGTH_LONG).show()
+            }
+        })
+        playerView.player = p
+        player = p
+        playChannel(index)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        player?.release()
+        player = null
+    }
+
+    private fun playChannel(i: Int) {
+        if (urls.isEmpty()) return
+        index = (i + urls.size) % urls.size
+        label.text = names[index]
+        label.visibility = View.VISIBLE
+        label.postDelayed({ label.visibility = View.GONE }, 3000)
+        player?.setMediaItem(MediaItem.fromUri(urls[index]))
+        player?.prepare()
+        player?.playWhenReady = true
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (!playerView.isControllerFullyVisible) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { playChannel(index + 1); return true }
+                KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { playChannel(index - 1); return true }
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+}
