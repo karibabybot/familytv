@@ -3,6 +3,40 @@
 // GET  /e/<room>               -> Server-Sent Events stream for that room
 // Messages with "keep":true are remembered and sent to anyone who connects later.
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+// ---- the phone page, served from here so it has its own simple link ----
+// Video and sound files are fetched once from the original site and kept in memory.
+const ORIGIN = process.env.MEDIA_ORIGIN || 'https://adorable-griffin-e7813f.netlify.app/';
+const MEDIA = { '/drive-loop.mp4': 'video/mp4', '/audio/rain.wav': 'audio/wav', '/audio/engine.wav': 'audio/wav', '/audio/thunder1.wav': 'audio/wav', '/audio/thunder2.wav': 'audio/wav' };
+const cache = {};
+async function getMedia(p) {
+  if (cache[p]) return cache[p];
+  const r = await fetch(ORIGIN + p.slice(1));
+  if (!r.ok) throw new Error('fetch ' + p + ' ' + r.status);
+  cache[p] = Buffer.from(await r.arrayBuffer());
+  return cache[p];
+}
+Object.keys(MEDIA).forEach(p => getMedia(p).catch(e => console.log(e.message)));
+function sendMedia(req, res, p) {
+  getMedia(p).then(buf => {
+    const total = buf.length;
+    const base = { 'Content-Type': MEDIA[p], 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=86400' };
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (m) {
+      let start = m[1] === '' ? total - Number(m[2]) : Number(m[1]);
+      let end = m[1] !== '' && m[2] !== '' ? Number(m[2]) : total - 1;
+      if (isNaN(start) || start < 0) start = 0;
+      if (end >= total) end = total - 1;
+      if (start > end) { res.writeHead(416, { 'Content-Range': 'bytes */' + total }); return res.end(); }
+      res.writeHead(206, Object.assign(base, { 'Content-Range': 'bytes ' + start + '-' + end + '/' + total, 'Content-Length': end - start + 1 }));
+      return res.end(req.method === 'HEAD' ? undefined : buf.subarray(start, end + 1));
+    }
+    res.writeHead(200, Object.assign(base, { 'Content-Length': total }));
+    res.end(req.method === 'HEAD' ? undefined : buf);
+  }).catch(() => { res.writeHead(502); res.end('media unavailable'); });
+}
 const rooms = new Map(); // room -> {clients:Set, last:string|null, seen:number}
 const ROOM_RE = /^[a-z0-9-]{4,40}$/;
 
@@ -21,6 +55,16 @@ const server = http.createServer((req, res) => {
   cors(res);
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
   const url = new URL(req.url, 'http://x');
+  if ((req.method === 'GET' || req.method === 'HEAD') && MEDIA[url.pathname]) return sendMedia(req, res, url.pathname);
+  if ((req.method === 'GET' || req.method === 'HEAD') && (url.pathname === '/' || url.pathname === '/index.html')) {
+    fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
+      if (err) { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.end(req.method === 'HEAD' ? undefined : data);
+    });
+    return;
+  }
+  if (url.pathname === '/sw.js') { res.writeHead(404); return res.end(); }
   const m = url.pathname.match(/^\/(p|e)\/([^/]+)$/);
   if (!m) { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   const name = m[2].toLowerCase();
