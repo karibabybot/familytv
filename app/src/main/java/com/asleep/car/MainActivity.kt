@@ -14,12 +14,12 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 
 /**
- * Opens your Rainy Night Drive site full screen in TV mode and starts the rain.
+ * Opens your Rainy Night Drive site, exactly as it looks in the browser. Use the remote's arrows and OK to press its buttons.
  * Change SITE if your web address ever changes.
  */
 class MainActivity : Activity() {
 
-    private val SITE = "https://adorable-griffin-e7813f.netlify.app/?tv=1&auto=1&v=2"
+    private val SITE = "https://adorable-griffin-e7813f.netlify.app/"
     private lateinit var web: WebView
     private var failed = false
 
@@ -71,24 +71,16 @@ class MainActivity : Activity() {
         if (hasFocus) hideBars()
     }
 
-    // Catch the remote's buttons before the web page can swallow them, so Back always works.
+    // Back always closes the app. Arrows and OK go to the page so you can press its buttons.
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) {
             if (event.action == KeyEvent.ACTION_UP) finish()
             return true
         }
-        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-            when (code) {
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER,
-                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                    if (failed) { failed = false; web.loadUrl(SITE) }
-                    else web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}))", null)
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT -> { web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft'}))", null); return true }
-                KeyEvent.KEYCODE_DPAD_RIGHT -> { web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight'}))", null); return true }
-            }
+        if (failed && event.action == KeyEvent.ACTION_DOWN &&
+            (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER)) {
+            failed = false; web.loadUrl(SITE); return true
         }
         return super.dispatchKeyEvent(event)
     }
