@@ -412,7 +412,7 @@ class MainActivity : Activity() {
         w.webChromeClient = chrome
     }
 
-    private val chrome = object : WebChromeClient() {
+    private val chrome: WebChromeClient = object : WebChromeClient() {
         override fun onPermissionRequest(request: PermissionRequest) {
             val ok = request.resources.filter { it == PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID }
             if (ok.isNotEmpty()) request.grant(ok.toTypedArray()) else request.deny()
