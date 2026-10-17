@@ -19,7 +19,7 @@ import android.webkit.WebViewClient
  */
 class MainActivity : Activity() {
 
-    private val SITE = "https://adorable-griffin-e7813f.netlify.app/?tv=1&auto=1"
+    private val SITE = "https://adorable-griffin-e7813f.netlify.app/?tv=1&auto=1&v=2"
     private lateinit var web: WebView
     private var failed = false
 
@@ -71,24 +71,29 @@ class MainActivity : Activity() {
         if (hasFocus) hideBars()
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
-            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                if (failed) { failed = false; web.loadUrl(SITE) }
-                else web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}))", null)
-                return true
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft'}))", null); return true
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight'}))", null); return true
-            }
-            KeyEvent.KEYCODE_BACK -> { finish(); return true }
+    // Catch the remote's buttons before the web page can swallow them, so Back always works.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val code = event.keyCode
+        if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE) {
+            if (event.action == KeyEvent.ACTION_UP) finish()
+            return true
         }
-        return super.onKeyDown(keyCode, event)
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            when (code) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER,
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                    if (failed) { failed = false; web.loadUrl(SITE) }
+                    else web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}))", null)
+                    return true
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT -> { web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft'}))", null); return true }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> { web.evaluateJavascript("document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight'}))", null); return true }
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
+
+    override fun onBackPressed() { finish() }
 
     override fun onPause() { super.onPause(); web.onPause() }
     override fun onResume() { super.onResume(); web.onResume() }
