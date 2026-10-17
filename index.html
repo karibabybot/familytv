@@ -186,7 +186,19 @@ input[type=file] { display: none; }
             <button class="btn" id="tvsignin" type="button">Sign in to Apple Music on TV</button>
             <button class="btn" id="tvsigndone" type="button" hidden>Done signing in</button>
           </div>
-          <div class="note" id="tvsignnote" hidden>On the TV, use the remote to type your Apple ID and password (or use the Fire TV app on your phone as a keyboard). Press Done signing in when you're through.</div>
+          <div id="tvsignnote" hidden>
+            <div class="note" style="margin-top:6px">Type here and it goes into the sign-in box on the TV. For the verification code, type all 6 digits and tap Send to TV. Tap Done signing in when you're through.</div>
+            <form class="row" id="tvtypeform" autocomplete="off">
+              <input type="text" id="tvtype" placeholder="Code or text" aria-label="Text to type on the TV" inputmode="numeric" autocomplete="one-time-code" style="text-transform:none;letter-spacing:0.12em">
+              <button class="btn primary" type="submit">Send to TV</button>
+            </form>
+            <div class="row">
+              <button class="btn" id="tvkenter" type="button">Enter</button>
+              <button class="btn" id="tvkdel" type="button">Delete</button>
+              <button class="btn" id="tvktab" type="button">Next box</button>
+            </div>
+            <div class="note" id="tvtypemsg" role="status"></div>
+          </div>
           <div class="row">
             <button class="btn" id="tvup" type="button">Move view up</button>
             <button class="btn" id="tvdown" type="button">Move view down</button>
@@ -758,6 +770,13 @@ input[type=file] { display: none; }
     tvSend({ type: 'signin', url: u }); TV.signin = true; TV.msg = 'Look at the TV.'; tvRender();
   });
   $('tvsigndone').addEventListener('click', function () { tvSend({ type: 'signin_done' }); TV.signin = false; tvRender(); });
+  $('tvtypeform').addEventListener('submit', function (e) {
+    e.preventDefault(); var t = $('tvtype').value; if (!t) return;
+    tvSend({ type: 'type', text: t }); $('tvtype').value = ''; $('tvtypemsg').textContent = 'Sent ' + t.length + ' characters to the TV.';
+  });
+  $('tvkenter').addEventListener('click', function () { tvSend({ type: 'type', key: 'enter' }); $('tvtypemsg').textContent = 'Sent Enter.'; });
+  $('tvkdel').addEventListener('click', function () { tvSend({ type: 'type', key: 'delete' }); $('tvtypemsg').textContent = 'Sent Delete.'; });
+  $('tvktab').addEventListener('click', function () { tvSend({ type: 'type', key: 'tab' }); $('tvtypemsg').textContent = 'Moved to the next box.'; });
   $('tvup').addEventListener('click', function () { tvSend({ type: 'tilt', d: -1 }); });
   $('tvdown').addEventListener('click', function () { tvSend({ type: 'tilt', d: 1 }); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden && tvOn() && (!TV.es || TV.es.readyState === 2)) tvListen(); if (!document.hidden && tvOn()) tvSend({ type: 'hello' }); });
