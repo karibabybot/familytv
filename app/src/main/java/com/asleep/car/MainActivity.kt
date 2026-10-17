@@ -613,6 +613,37 @@ class MainActivity : Activity() {
         sendStatus()
     }
 
+    // ---------- typing from the phone into the sign-in screen ----------
+    private val FOCUS_JS = "(function(){function all(r,o){var e=r.querySelectorAll('input');for(var i=0;i<e.length;i++)o.push(e[i]);" +
+        "var s=r.querySelectorAll('*');for(var j=0;j<s.length;j++)if(s[j].shadowRoot)all(s[j].shadowRoot,o);return o}" +
+        "var a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='IFRAME'))return 'kept';" +
+        "var ins=all(document,[]).filter(function(x){var r=x.getBoundingClientRect();return r.width>2&&r.height>2&&x.type!=='hidden'&&x.type!=='checkbox'});" +
+        "for(var k=0;k<ins.length;k++)if(!ins[k].value){ins[k].focus();return 'focused'}" +
+        "if(ins.length){ins[0].focus();return 'focused'}return 'none'})()"
+
+    private fun typeOnTv(text: String, key: String) {
+        val target: WebView = popup ?: mw
+        if (!signingIn && popup == null) return
+        target.requestFocus()
+        target.evaluateJavascript(FOCUS_JS) { _ ->
+            val events = ArrayList<KeyEvent>()
+            if (text.isNotEmpty()) {
+                val map = android.view.KeyCharacterMap.load(android.view.KeyCharacterMap.VIRTUAL_KEYBOARD)
+                map.getEvents(text.take(200).toCharArray())?.let { events.addAll(it) }
+            }
+            val code = when (key) {
+                "enter" -> KeyEvent.KEYCODE_ENTER
+                "delete" -> KeyEvent.KEYCODE_DEL
+                "tab" -> KeyEvent.KEYCODE_TAB
+                else -> 0
+            }
+            if (code != 0) { events.add(KeyEvent(KeyEvent.ACTION_DOWN, code)); events.add(KeyEvent(KeyEvent.ACTION_UP, code)) }
+            events.forEachIndexed { i, ev -> ui.postDelayed({ target.dispatchKeyEvent(ev) }, 60L * i) }
+            musicMsg = "Typed on the TV."
+            sendStatus()
+        }
+    }
+
     // ---------- talking to the phone ----------
     private fun listen() {
         Thread {
@@ -731,6 +762,7 @@ class MainActivity : Activity() {
             "music" -> musicCmd(o.optString("action"))
             "signin" -> startSignIn(o.optString("url").takeIf { it.startsWith("https://embed.music.apple.com/") })
             "signin_done" -> if (signingIn) endSignIn()
+            "type" -> typeOnTv(o.optString("text"), o.optString("key"))
             "tilt" -> tilt(if (o.optInt("d") < 0) -0.04f else 0.04f)
             "sleep" -> {
                 val min = o.optInt("min")
