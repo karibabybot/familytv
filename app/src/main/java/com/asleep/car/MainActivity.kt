@@ -413,17 +413,14 @@ class MainActivity : Activity() {
     }
 
     private val chrome: WebChromeClient = object : WebChromeClient() {
-        override fun onPermissionRequest(request: PermissionRequest) {
-            val ok = request.resources.filter { it == PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID }
-            if (ok.isNotEmpty()) request.grant(ok.toTypedArray()) else request.deny()
-        }
+        override fun onPermissionRequest(request: PermissionRequest) { grantMedia(request) }
         override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
             closePopup()
             val p = WebView(this@MainActivity)
             setupWeb(p)
             p.webChromeClient = object : WebChromeClient() {
                 override fun onCloseWindow(window: WebView) { closePopup(); afterSignIn() }
-                override fun onPermissionRequest(request: PermissionRequest) { chrome.onPermissionRequest(request) }
+                override fun onPermissionRequest(request: PermissionRequest) { grantMedia(request) }
             }
             root.addView(p, FrameLayout.LayoutParams(-1, -1))
             popup = p
@@ -433,6 +430,11 @@ class MainActivity : Activity() {
             return true
         }
         override fun onCloseWindow(window: WebView) { if (window === popup) { closePopup(); afterSignIn() } }
+    }
+
+    private fun grantMedia(request: PermissionRequest) {
+        val ok = request.resources.filter { it == PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID }
+        if (ok.isNotEmpty()) request.grant(ok.toTypedArray()) else request.deny()
     }
 
     private fun closePopup() {
